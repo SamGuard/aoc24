@@ -22,8 +22,8 @@ int r_input(char *g, FILE *f, int *width) {
     return ptr - g;
 }
 
-int part1_traverse(const char *const grid, const int g_width, const int g_len,
-                   const int dx, const int dy, int pos, int c_index) {
+int part1_traverse(const char *const grid, const int g_width, const int g_len, const int dx,
+                   const int dy, int pos, int c_index) {
     static char word[] = "XMAS";
     for (int i = 0; i < c_index; i++) {
         printf(" ");
@@ -52,15 +52,14 @@ int part1_traverse(const char *const grid, const int g_width, const int g_len,
             }
             x_pos += ndx;
             y_pos += ndy;
-            if (x_pos < 0 || x_pos >= g_width || y_pos < 0 ||
-                y_pos * g_width >= g_len) {
+            if (x_pos < 0 || x_pos >= g_width || y_pos < 0 || y_pos * g_width >= g_len) {
                 continue;
             }
             if (grid[x_pos + y_pos * g_width] != c) {
                 continue;
             }
-            total += part1_traverse(grid, g_width, g_len, ndx, ndy,
-                                    x_pos + y_pos * g_width, c_index + 1);
+            total += part1_traverse(grid, g_width, g_len, ndx, ndy, x_pos + y_pos * g_width,
+                                    c_index + 1);
             if (dx != 0 || dy != 0) {
                 return total;
             }
@@ -70,31 +69,29 @@ int part1_traverse(const char *const grid, const int g_width, const int g_len,
     return total;
 }
 
-#define P2MATCH(PATT, OUT)                                                \
-    {                                                                     \
-        OUT = 1;                                                          \
-        for (int x = -1; x <= 1; x++) {                                   \
-            for (int y = -1; y <= 1; y++) {                               \
-                int m_pos = x + 1 + (y + 1) * 3;                          \
-                int x_pos = pos % g_width + x, y_pos = pos / g_width + y; \
-                if (x_pos < 0 || x_pos >= g_width || y_pos < 0 ||         \
-                    y_pos * g_width >= g_len) {                           \
-                    OUT = 0;                                              \
-                    continue;                                             \
-                }                                                         \
-                if (PATT[m_pos] == '.') {                                 \
-                    continue;                                             \
-                }                                                         \
-                if (PATT[m_pos] != grid[x_pos + y_pos * g_width]) {       \
-                    OUT = 0;                                              \
-                    continue;                                             \
-                }                                                         \
-            }                                                             \
-        }                                                                 \
+#define P2MATCH(PATT, OUT)                                                                    \
+    {                                                                                         \
+        OUT = 1;                                                                              \
+        for (int x = -1; x <= 1; x++) {                                                       \
+            for (int y = -1; y <= 1; y++) {                                                   \
+                int m_pos = x + 1 + (y + 1) * 3;                                              \
+                int x_pos = pos % g_width + x, y_pos = pos / g_width + y;                     \
+                if (x_pos < 0 || x_pos >= g_width || y_pos < 0 || y_pos * g_width >= g_len) { \
+                    OUT = 0;                                                                  \
+                    continue;                                                                 \
+                }                                                                             \
+                if (PATT[m_pos] == '.') {                                                     \
+                    continue;                                                                 \
+                }                                                                             \
+                if (PATT[m_pos] != grid[x_pos + y_pos * g_width]) {                           \
+                    OUT = 0;                                                                  \
+                    continue;                                                                 \
+                }                                                                             \
+            }                                                                                 \
+        }                                                                                     \
     }
 
-int part2_traverse(const char *const grid, const int g_width, const int g_len,
-                   int pos) {
+int part2_traverse(const char *const grid, const int g_width, const int g_len, int pos) {
     /*
     M.S
     .A.
@@ -113,8 +110,8 @@ int part2_traverse(const char *const grid, const int g_width, const int g_len,
     S.M
     */
 
-    static const char m1[] = "M.S.A.M.S", m2[] = "M.M.A.S.S",
-                      m3[] = "S.S.A.M.M", m4[] = "S.M.A.S.M";
+    static const char m1[] = "M.S.A.M.S", m2[] = "M.M.A.S.S", m3[] = "S.S.A.M.M",
+                      m4[] = "S.M.A.S.M";
 
     int m1_match, m2_match, m3_match, m4_match;
     P2MATCH(m1, m1_match);

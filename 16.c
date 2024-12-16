@@ -105,8 +105,8 @@ static int node_sort(const void *p1, const void *p2) {
     const uint64_t v1 = nodes[n1].dist, v2 = nodes[n2].dist;
     return -1 * ((v1 > v2) - (v1 < v2));
 }
-uint64_t travel(const char *const grid, const int width, const int len,
-                const int s_pos, const int e_pos, const direct_t s_dir) {
+uint64_t travel(const char *const grid, const int width, const int len, const int s_pos,
+                const int e_pos, const direct_t s_dir) {
     printf("spos = %d; epos = %d\n", s_pos, e_pos);
     int visit_list[256];
     int v_list_len;
@@ -214,8 +214,8 @@ uint64_t travel(const char *const grid, const int width, const int len,
     return res;
 }
 
-uint64_t travel2(const char *const grid, const int width, const int len,
-                 const int s_pos, const int e_pos, const direct_t s_dir) {
+uint64_t travel2(const char *const grid, const int width, const int len, const int s_pos,
+                 const int e_pos, const direct_t s_dir) {
     printf("spos = %d; epos = %d\n", s_pos, e_pos);
     uint64_t res = 0;
     int visit_list[4096];
@@ -258,8 +258,7 @@ uint64_t travel2(const char *const grid, const int width, const int len,
         {
             int n_pos = g_index;
             // Forward
-            if (move(&n_pos, c_dir, width, len) &&
-                nodes[n_pos + len * c_dir].s != Closed) {
+            if (move(&n_pos, c_dir, width, len) && nodes[n_pos + len * c_dir].s != Closed) {
                 int n_index = n_pos + len * c_dir;
                 node_t *n_node = nodes + n_index;
                 if (c_node->dist + 1 < n_node->dist) {
@@ -328,8 +327,7 @@ uint64_t travel2(const char *const grid, const int width, const int len,
             int n_pos = p % len;
             direct_t c_dir = p / len;
             move(&n_pos, rot(rot(c_dir, 1), 1), width, len);
-            int neigh[] = {n_pos + len * c_dir,
-                           ((p - len) + node_len) % node_len,
+            int neigh[] = {n_pos + len * c_dir, ((p - len) + node_len) % node_len,
                            (p + len) % node_len};
             uint64_t offset[] = {1, 1000, 1000};
             int len_neigh = sizeof(neigh) / sizeof(int);
@@ -344,9 +342,8 @@ uint64_t travel2(const char *const grid, const int width, const int len,
                 }
             }
             for (int i = 0; i < pos_len; i++) {
-                printf("c_pos=%d -> (%d, %d, %d) |||| ", pos_list[i],
-                       (pos_list[i] % len) % width, (pos_list[i] % len) / width,
-                       pos_list[i] / len);
+                printf("c_pos=%d -> (%d, %d, %d) |||| ", pos_list[i], (pos_list[i] % len) % width,
+                       (pos_list[i] % len) / width, pos_list[i] / len);
             }
             printf("\n");
         }

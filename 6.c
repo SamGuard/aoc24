@@ -12,8 +12,8 @@ typedef enum {
 
 int print = 0;
 
-uint64_t travel(const char *const grid, const int width, const int len,
-                int g_pos, uint64_t max_steps) {
+uint64_t travel(const char *const grid, const int width, const int len, int g_pos,
+                uint64_t max_steps) {
     char *occ = (char *)calloc(len, sizeof(char));
     direct_t d = Up;
     uint64_t step = 0;
@@ -111,8 +111,7 @@ finish:
     return total;
 }
 
-uint64_t iter(const char *const grid, const int width, const int len,
-              int g_pos) {
+uint64_t iter(const char *const grid, const int width, const int len, int g_pos) {
     char *cpy = (char *)malloc(len * sizeof(char));
     memcpy(cpy, grid, len * sizeof(char));
     uint64_t total = 0;

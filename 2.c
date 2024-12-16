@@ -6,9 +6,7 @@
 #define REP_LEN 256
 
 int f_is_safe(int *reports, int levels) {
-    int is_increasing =
-        reports[0]<reports[1], is_decreasing = reports[0]> reports[1],
-        is_safe = 1;
+    int is_increasing = reports[0]<reports[1], is_decreasing = reports[0]> reports[1], is_safe = 1;
     for (int i = 0; i < levels - 1; i++) {
         if (is_increasing && reports[i] > reports[i + 1]) {
             is_safe = 0;
@@ -68,8 +66,7 @@ int main(int argc, char *argv[]) {
         int levels = 0;
         // Remove \n from str
         buff[strlen(buff) - 1] = '\0';
-        while ((token = strtok_r(token == NULL ? buff : NULL, " ", &savptr)) !=
-               NULL) {
+        while ((token = strtok_r(token == NULL ? buff : NULL, " ", &savptr)) != NULL) {
             printf("%s ", token);
             reports[levels++] = atoi(token);
         }

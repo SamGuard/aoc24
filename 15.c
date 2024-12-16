@@ -27,10 +27,8 @@ direct_t cmdtoch(char c) {
     }
 }
 
-int push(char *const grid, const int width, const int len, int c_pos,
-         direct_t d) {
-    if (c_pos % width == 0 || (c_pos + 1) % width || c_pos < width ||
-        c_pos >= len - width) {
+int push(char *const grid, const int width, const int len, int c_pos, direct_t d) {
+    if (c_pos % width == 0 || (c_pos + 1) % width || c_pos < width || c_pos >= len - width) {
         return 0;
     }
     int n_pos = c_pos;
@@ -43,9 +41,8 @@ int push(char *const grid, const int width, const int len, int c_pos,
     }
 }
 
-uint64_t do_cmds(char *const grid, const int g_width, const int g_len,
-                 const char *const cmds, const int cmd_len,
-                 const int start_pos) {
+uint64_t do_cmds(char *const grid, const int g_width, const int g_len, const char *const cmds,
+                 const int cmd_len, const int start_pos) {
     int pos = start_pos;
     for (int i = 0; i < cmd_len; i++) {
         direct_t cmd = cmdtoch(cmds[i]);

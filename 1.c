@@ -4,9 +4,7 @@
 
 #define LIST_SIZE 1024
 
-static int cmp_num(const void *p1, const void *p2) {
-    return *(const int *)p1 > *(const int *)p2;
-}
+static int cmp_num(const void *p1, const void *p2) { return *(const int *)p1 > *(const int *)p2; }
 
 int main(int argc, char *argv[]) {
     int l_list[LIST_SIZE], r_list[LIST_SIZE];
@@ -36,8 +34,7 @@ int main(int argc, char *argv[]) {
     uint64_t total = 0;
     for (int i = 0; i < row; i++) {
         total += abs(l_list[i] - r_list[i]);
-        printf("%d - %d -> %d\n", l_list[i], r_list[i],
-               abs(l_list[i] - r_list[i]));
+        printf("%d - %d -> %d\n", l_list[i], r_list[i], abs(l_list[i] - r_list[i]));
     }
     printf("Part 1 Total: %lu\n", total);
 
