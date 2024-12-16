@@ -4,42 +4,42 @@
 #include <string.h>
 
 typedef enum {
-    up, down, left, right,
+    Up, Down, Left, Right,
 } direct_t;
 
 int print = 0;
 
 uint64_t travel(const char *const grid, const int width, const int len, int g_pos, uint64_t max_steps) {
     char *occ = (char *)calloc(len, sizeof(char));
-    direct_t d = up;
+    direct_t d = Up;
     uint64_t step = 0;
 
     occ[g_pos] = 'X';
 
     while (step < max_steps) {
         switch (d) {
-        case up: {
+        case Up: {
             if (g_pos - width < 0) {
                 goto finish;
             }
             g_pos -= width;
             break;
         }
-        case down: {
+        case Down: {
             if (g_pos + width >= len) {
                 goto finish;
             }
             g_pos += width;
             break;
         }
-        case left: {
+        case Left: {
             if (g_pos % width == 0) {
                 goto finish;
             }
             g_pos -= 1;
             break;
         }
-        case right: {
+        case Right: {
             if ((g_pos + 1) % width == 0) {
                 goto finish;
             }
@@ -64,21 +64,21 @@ uint64_t travel(const char *const grid, const int width, const int len, int g_po
         occ[g_pos] = '#';
 
         switch (d) {
-        case up:
+        case Up:
             g_pos += width;
-            d = right;
+            d = Right;
             break;
-        case down:
+        case Down:
             g_pos -= width;
-            d = left;
+            d = Left;
             break;
-        case left:
+        case Left:
             g_pos += 1;
-            d = up;
+            d = Up;
             break;
-        case right:
+        case Right:
             g_pos -= 1;
-            d = down;
+            d = Down;
             break;
         default:
             printf("Bad\n");
