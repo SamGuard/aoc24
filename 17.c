@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MAX_THREADS 32
+#define MAX_THREADS 1
 
 typedef enum {
     adv = 0,
@@ -21,12 +21,12 @@ typedef enum {
 } opcode_t;
 
 typedef struct {
-    int A, B, C, PC;
+    long long int A, B, C, PC;
 } cpu_state_t;
 
 int print = 0;
 
-int calc_combo(int x, const cpu_state_t *const cpu) {
+long long int calc_combo(int x, const cpu_state_t *const cpu) {
     switch (x) {
         case 0:
         case 1:
@@ -45,16 +45,17 @@ int calc_combo(int x, const cpu_state_t *const cpu) {
     }
 }
 
-void divide(cpu_state_t *cpu, int *out_reg, int combo) {
-    if (combo < 0) {
-        printf("Combo too low %d\n", combo);
-        exit(-1);
-    }
+void divide(cpu_state_t *cpu, long long int *out_reg, long long int combo) {
     if (combo == 0) {
         *out_reg = cpu->A;
         return;
     }
-    *out_reg = cpu->A / (2 << (combo - 1));
+    if (combo > 0) {
+        // printf("Combo too low %d\n", combo);
+        *out_reg = cpu->A / (2 << (combo - 1));
+    } else {
+        *out_reg = cpu->A * (2 << ((-combo) - 1));
+    }
 }
 
 int early_stop = 2 << 15;
@@ -114,10 +115,13 @@ int go(cpu_state_t cpu_in, const int *const ins, const int num_ins, int *const o
     while (cpu->PC < num_ins) {
         int PC = cpu->PC;
         if (print) {
-            printf("PC: %d, INS: (%d,%d), A: %d, B: %d, C: %d\n", PC, (opcode_t)ins[PC],
+            printf("PC: %d, INS: (%d,%d), A: %lld, B: %lld, C: %lld\n", PC, (opcode_t)ins[PC],
                    ins[PC + 1], cpu->A, cpu->B, cpu->C);
         }
         do_ins(cpu, (opcode_t)ins[PC], ins[PC + 1], out_str, out, &out_len);
+        if (out != NULL && out_len > 0 && out[out_len - 1] != ins[out_len - 1]) {
+            return out_len;
+        }
         cpu->PC += 2;
     }
     if (print) {
@@ -129,10 +133,11 @@ int go(cpu_state_t cpu_in, const int *const ins, const int num_ins, int *const o
 
 void generate(cpu_state_t cpu, const int *const ins, const int num_ins) {
     // Multithread
-    int my_id = -1, A = 0,
+    long long int A = 0;
+    int my_id = -1,
         *flag = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0),
         *num_threads = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    *flag = 1;
+    *flag = MAX_THREADS;
     while (1) {
         int last_num_threads = *num_threads;
         int pid = fork();
@@ -151,37 +156,58 @@ void generate(cpu_state_t cpu, const int *const ins, const int num_ins) {
     }
 
     if (my_id == -1) {
-        while (*flag == 1) {
+        while (*flag) {
             usleep(1000000);
         }
         return;
     }
 
     // A = my_id * (int)(((uint64_t)4294967293) / (uint64_t) MAX_THREADS);
-    A = my_id * (int)(((uint64_t) 2147483648) / (uint64_t) MAX_THREADS);
-    printf("My Id: %d %d -> %f/100\n", my_id, A, 100 * (float)A / (float)(2147483647));
+    const long long limit = (2LL << 61);
+    const long long int width = (long long int)(limit / (long long int) MAX_THREADS);
+    const long long int start_point = my_id * width;
+    A = start_point;
+    printf("ID: %d %lld -> %f/100\n", my_id, A, 100 * (float)A / (float)(limit));
 
     print = 0;
     int out[256];
     early_stop = num_ins;
     do {
         cpu.A = A;
-        memset(out, -1, num_ins * sizeof(int));
         int out_len = go(cpu, ins, num_ins, out);
-        if (out_len == num_ins && memcmp(ins, out, num_ins * sizeof(int)) == 0) {
-            printf("\n\n|A = %d|\n\n", A);
-            *flag = 0;
-            exit(0);
+        if (out_len > 2) {
+            printf("A=%lld -> ", A);
+            for (int i = 0; i < out_len && i < num_ins; i++) {
+                printf("%d,", out[i]);
+            }
+            printf("\n");
+        }
+        if (out_len == num_ins) {
+            int match = 1;
+            for (int i = 0; i < num_ins; i++) {
+                if (out[i] != ins[i]) {
+                    match = 0;
+                    break;
+                }
+            }
+            if (match) {
+                printf("\n\n|A = %lld|\n\n", A);
+                *flag = 0;
+                exit(0);
+            }
         }
         A++;
-        if (A % 10000000 == 0) {
-            printf("ID: %d %f/100\n", my_id, (float)A / (float)(2147483647));
+        if (A % 1000000000 == 0) {
+            printf("ID: %d %f/100\n", my_id, 100 * ((float)(A - start_point)) / (float)(limit));
         }
         if (*flag == 0) {
             exit(0);
         }
-    } while (A != 0);
-    printf("Couldnt find an A:(");
+    } while (A <= start_point + width);
+    // printf("Couldnt find an A:(");
+    printf("ID: %d is done\n", my_id);
+    (*flag)--;
+    exit(0);
 }
 
 int main(int argc, char *argv[]) {
@@ -209,7 +235,7 @@ int main(int argc, char *argv[]) {
         cpu.C = atoi(strchr(buff, ':') + 1);
         // Read in \n
         fgets(buff, sizeof(buff), f);
-        printf("A: %d, B: %d, C: %d\n", cpu.A, cpu.B, cpu.C);
+        printf("A: %lld, B: %lld, C: %lld\n", cpu.A, cpu.B, cpu.C);
 
         fgets(buff, sizeof(buff), f);
         char *token = buff;
