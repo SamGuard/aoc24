@@ -192,8 +192,8 @@ void generate(cpu_state_t cpu, const int *const ins, const int num_ins) {
             }
             if (match) {
                 printf("\n\n|A = %lld|\n\n", A);
-                *flag = 0;
-                exit(0);
+                // *flag = 0;
+                // exit(0);
             }
         }
         A++;
