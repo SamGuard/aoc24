@@ -92,7 +92,8 @@ void do_ins(cpu_state_t *cpu, opcode_t code, int rand, char *const out_str, int 
                 char tmp[8] = {0};
                 sprintf(tmp, "%d,", v);
                 strcat(out_str, tmp);
-            } else {
+            }
+            if (out_num) {
                 out_num[(*out_len)++] = v;
                 if (*out_len > early_stop) {
                     cpu->PC = 2 << 15;
@@ -112,102 +113,67 @@ int go(cpu_state_t cpu_in, const int *const ins, const int num_ins, int *const o
     char out_str[128] = {0};
     int out_len = 0;
     cpu->PC = 0;
+    if (print) printf("A=%16llx\n", cpu->A);
     while (cpu->PC < num_ins) {
         int PC = cpu->PC;
-        if (print) {
-            printf("PC: %d, INS: (%d,%d), A: %lld, B: %lld, C: %lld\n", PC, (opcode_t)ins[PC],
-                   ins[PC + 1], cpu->A, cpu->B, cpu->C);
+        if (print && ins[PC] == 5) {
+            // printf("PC: %d, INS: (%d,%d), A: %lld, B: %lld, C: %lld\n", PC, (opcode_t)ins[PC],
+            //        ins[PC + 1], cpu->A, cpu->B, cpu->C);
+            // printf("A=%12llx -> %lld\n", cpu->A, cpu->A % 8);
         }
         do_ins(cpu, (opcode_t)ins[PC], ins[PC + 1], out_str, out, &out_len);
-        if (out != NULL && out_len > 0 && out[out_len - 1] != ins[out_len - 1]) {
-            return out_len;
-        }
         cpu->PC += 2;
     }
     if (print) {
+        // printf("A=%16llx\n", cpu->A);
         printf("%s\n", out_str);
     }
 
     return out_len;
 }
 
-void generate(cpu_state_t cpu, const int *const ins, const int num_ins) {
-    // Multithread
-    long long int A = 0;
-    int my_id = -1,
-        *flag = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0),
-        *num_threads = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    *flag = MAX_THREADS;
-    while (1) {
-        int last_num_threads = *num_threads;
-        int pid = fork();
-        if (pid == 0) {
-            my_id = (*num_threads)++;
-            // printf("Thread %d created!\n", my_id);
-            break;
-        } else {
-            while (last_num_threads == *num_threads) {
-                usleep(100);
-            }
-            if (*num_threads == MAX_THREADS) {
-                break;
-            }
-        }
+int f(cpu_state_t cpu, const int *const ins, const int num_ins, int shift, uint64_t *io_A) {
+    if (shift < 0) {
+        return 1;
     }
-
-    if (my_id == -1) {
-        while (*flag) {
-            usleep(1000000);
-        }
-        return;
-    }
-
-    // A = my_id * (int)(((uint64_t)4294967293) / (uint64_t) MAX_THREADS);
-    const long long limit = (2LL << 61);
-    const long long int width = (long long int)(limit / (long long int) MAX_THREADS);
-    const long long int start_point = my_id * width;
-    A = start_point;
-    printf("ID: %d %lld -> %f/100\n", my_id, A, 100 * (float)A / (float)(limit));
-
     print = 0;
-    int out[256];
-    early_stop = num_ins;
-    do {
+    uint64_t A = *io_A;
+    int out[32], index = (int)shift / 3;
+    for (uint64_t cwn = 0x0; cwn < 8; cwn++) {
+        A &= (0xffffffffffff ^ 0b111LL << shift);
+        A |= cwn << shift;
+        printf("Trying A = %12llx, cwn = %lld\n", (long long)A, (long long) cwn);
         cpu.A = A;
         int out_len = go(cpu, ins, num_ins, out);
-        if (out_len > 2) {
-            printf("A=%lld -> ", A);
-            for (int i = 0; i < out_len && i < num_ins; i++) {
-                printf("%d,", out[i]);
-            }
-            printf("\n");
+        if (index >= out_len) {
+            continue;
         }
-        if (out_len == num_ins) {
-            int match = 1;
-            for (int i = 0; i < num_ins; i++) {
-                if (out[i] != ins[i]) {
-                    match = 0;
-                    break;
-                }
-            }
-            if (match) {
-                printf("\n\n|A = %lld|\n\n", A);
-                // *flag = 0;
-                // exit(0);
+        if (out[index] != ins[index]) {
+            continue;
+        }
+        printf("Found %d at shift %d\n", out[index], shift);
+        {
+            // Go try this val
+            uint64_t test_A = A;
+            if (f(cpu, ins, num_ins, shift - 3, &test_A)) {
+                *io_A = test_A;
+                return 1;
             }
         }
-        A++;
-        if (A % 1000000000 == 0) {
-            printf("ID: %d %f/100\n", my_id, 100 * ((float)(A - start_point)) / (float)(limit));
-        }
-        if (*flag == 0) {
-            exit(0);
-        }
-    } while (A <= start_point + width);
-    // printf("Couldnt find an A:(");
-    printf("ID: %d is done\n", my_id);
-    (*flag)--;
-    exit(0);
+    }
+    printf("Failed, going back a level %d\n", shift + 3);
+    return 0;
+}
+
+void work_back(const cpu_state_t cpu_in, const int *const ins, const int num_ins) {
+    print = 1;
+    uint64_t A = 0x000000000000;
+    int res = f(cpu_in, ins, num_ins, 45, &A);
+    if (res) {
+        printf("Part2 Answer: %lld\n", (long long)A);
+    } else {
+        printf("NOT Part2 Answer: %lld\n", (long long)A);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -253,8 +219,9 @@ int main(int argc, char *argv[]) {
     print = 1;
     go(cpu, ins, num_ins, NULL);
     printf("Part2 - Running Program...\n");
+    work_back(cpu, ins, num_ins);
     print = 0;
-    generate(cpu, ins, num_ins);
+    // generate(cpu, ins, num_ins);
 
     fclose(f);
     return 0;
