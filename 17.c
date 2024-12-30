@@ -142,7 +142,7 @@ int f(cpu_state_t cpu, const int *const ins, const int num_ins, int shift, uint6
     for (uint64_t cwn = 0x0; cwn < 8; cwn++) {
         A &= (0xffffffffffff ^ 0b111LL << shift);
         A |= cwn << shift;
-        printf("Trying A = %12llx, cwn = %lld\n", (long long)A, (long long) cwn);
+        printf("Trying A = %12llx, cwn = %lld\n", (long long)A, (long long)cwn);
         cpu.A = A;
         int out_len = go(cpu, ins, num_ins, out);
         if (index >= out_len) {
