@@ -13,9 +13,62 @@ typedef struct {
     uint64_t s_len, s_size;
 } out_str_t;
 
+
+#define C_TO_LVL 10
+typedef struct {
+    int lvl, start_index, tgt;
+    uint64_t res;
+} cache_entry_t;
+
 keypad_t key_door = {3, 12, 9}, key_dir = {3, 6, 0};
 
 int print = 1;
+
+
+
+cache_entry_t *cache;
+int num_cache = 0, cache_size = 0;
+
+cache_entry_t *find_cache_ent(const int lvl, const int start_index, const int tgt) {
+    if (!cache) {
+        return NULL;
+    }
+    for (int i = 0; i < num_cache; i++) {
+        cache_entry_t *c = cache + i;
+        if (c->lvl == lvl && c->start_index == start_index && c->tgt == tgt) {
+            return c;
+        }
+    }
+    return NULL;
+}
+
+void add_cache_ent(const int lvl, const int start_index, const int tgt, const uint64_t res) {
+    if (cache == NULL || cache_size == 0 || num_cache == cache_size) {
+        if (cache_size == 0 || cache == NULL) {
+            free(cache);  // Incase already defined
+            cache = NULL;
+            cache_size = 1 << 15;
+            num_cache = 0;
+        } else {
+            cache_size = (int)(cache_size * 1.5f);
+            if (cache_size > (1 << 29)) {
+                printf("Cache getting too big\n");
+                exit(-1);
+            }
+        }
+        cache = (cache_entry_t *)realloc(cache, sizeof(cache_entry_t) * cache_size);
+        if (!cache) {
+            printf("Error allocing new memory for cache\n");
+            exit(-1);
+        }
+    }
+
+    cache_entry_t *c = cache + (num_cache++);
+    c->lvl = lvl;
+    c->start_index = start_index;
+    c->tgt = tgt;
+    c->res = res;
+}
 
 int door_num_to_index(int num) {
     switch (num) {
@@ -62,6 +115,7 @@ int dir_cmd_to_index(char cmd) {
 int num_dir_keypads = 0;
 int dir_push(const char cmd, const int level, const int start_index, uint64_t * const out_size) {
     const int width = key_dir.width;
+    const uint64_t out_size_sav = *out_size;
 
     assert(num_dir_keypads != 0);
     if (level == num_dir_keypads) {
@@ -75,28 +129,66 @@ int dir_push(const char cmd, const int level, const int start_index, uint64_t * 
     if (print) {
         printf("Dir level %d wants %c\n", level, cmd);
     }
-    // Always start at Accept button
+
     const int tgt_i = dir_cmd_to_index(cmd);
+
+    {
+        cache_entry_t *c;
+        if((c = find_cache_ent(level, start_index, tgt_i)) != NULL) {
+            *out_size += c->res;
+            return tgt_i;
+        }
+    }
     const int dx = (tgt_i % width) - start_index % width,
               dy = (tgt_i / width) - start_index / width, next_level = level + 1;
 
-    int c_pos = 2;  // Pos of the robot hand
-    for (int i = 0; i < abs(dy); i++) {
-        char cmd = 'v';
-        if (dy < 0) {
-            cmd = '^';
+    { // Pls dont look at this mess
+        int diffs[] = {0, 0};
+        char cmds[] = {'\0','\0'};
+        uint64_t tmp_out[2];
+        for (int i = 0; i < 2; i++) {
+            tmp_out[i] = *out_size;
+            if (i == 0) {
+                diffs[0] = dx;
+                diffs[1] = dy;
+                cmds[0] = dx > 0 ? '>' : '<';
+                cmds[1] = dy > 0 ? 'v' : '^';
+                // Invalid route
+                if (start_index + diffs[0] == key_dir.miss_index &&
+                    start_index / width == key_dir.miss_index / width) {
+                    tmp_out[i] = -1;
+                    continue;
+                }
+            } else {
+                diffs[0] = dy;
+                diffs[1] = dx;
+                cmds[0] = dy > 0 ? 'v' : '^';
+                cmds[1] = dx > 0 ? '>' : '<';
+                // Invalid route
+                if (start_index + diffs[0] * width == key_dir.miss_index) {
+                    tmp_out[i] = -1;
+                    continue;
+                }
+            }
+
+            int c_pos = 2;
+            for (int j = 0; j < 2; j++) {
+                for (int k = 0; k < abs(diffs[j]); k++) {
+                    c_pos = dir_push(cmds[j], next_level, c_pos, tmp_out + i);
+                }
+            }
+            dir_push('A', next_level, c_pos, tmp_out + i);
         }
-        c_pos = dir_push(cmd, next_level, c_pos, out_size);
+
+        if (tmp_out[0] < tmp_out[1]) {
+            *out_size = tmp_out[0];
+        } else {
+            *out_size = tmp_out[1];
+        }
+        assert(*out_size != (uint64_t)-1);
     }
 
-    for (int i = 0; i < abs(dx); i++) {
-        char cmd = '>';
-        if (dx < 0) {
-            cmd = '<';
-        }
-        c_pos = dir_push(cmd, next_level, c_pos, out_size);
-    }
-    dir_push('A', next_level, c_pos, out_size);
+    add_cache_ent(level, start_index, tgt_i, *out_size - out_size_sav);
 
     return tgt_i;
 }
@@ -163,6 +255,10 @@ int door_push(const int num, const int start_index, uint64_t *const out_size) {
 }
 
 uint64_t do_code(const char *const seq, int num_seq) {
+    free(cache);
+    cache = NULL;
+    num_cache = 0;
+
     int c_pos = 11;
 
     uint64_t res = 0;
@@ -175,6 +271,7 @@ uint64_t do_code(const char *const seq, int num_seq) {
         }
         c_pos = door_push(num, c_pos, &res);
     }
+    printf(": ");
     return res;
 }
 
